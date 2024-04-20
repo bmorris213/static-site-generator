@@ -1,4 +1,1 @@
-from textnode import TextNode
-
-testTextNode = TextNode("I never learned to read or write...", "bold", "https://google.com")
-print(testTextNode)
+print ("This main is a work in progress lmao")
