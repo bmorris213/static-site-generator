@@ -17,24 +17,28 @@ class HTMLNode:
         return newstring
     
     def __repr__(self):
+        representation = ""
         if self.tag == None:
-            print ("Tag: None")
+            representation += "\nTag: None"
         else:
-            print(f"Tag: {self.tag}")
+            representation += f"\nTag: {self.tag}"
         if self.value == None:
-            print ("Value: None")
+            representation += "\nValue: None"
         else:
-            print(f"Value: {self.value}")
+            representation += f"\nValue: {self.value}"
 
-        children_print = "Children: "
+        children_print = "\nChildren: "
         if self.children == None:
-            print(f"{children_print}None")
+            representation += f"{children_print}None"
         else:
+            children_print += "("
             for child in self.children:
                 children_print += f"{child}, "
-            print(f"{children_print[:-2]}")
+            representation += f"{children_print[:-2]})"
         
         if self.props == None:
-            print("Props: None")
+            representation += "\nProps: None"
         else:
-            print(f"Props: {self.props_to_html()}")
+            representation += f"\nProps: {{{self.props_to_html()}}}"
+        
+        return representation
