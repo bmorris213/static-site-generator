@@ -1,14 +1,8 @@
 from leafnode import LeafNode
 
-from enum import Enum
+import re
 
 class TextNode:
-    text_type_delimiters = {
-        "text" : "",
-        "bold" : "**",
-        "italic" : "*",
-        "code": "`"
-    }
     
     def __init__(self, text, text_type, url=None):
         self.text = text
@@ -19,45 +13,129 @@ class TextNode:
         return self.text == other.text and \
             self.text_type == other.text_type and \
             self.url == other.url
-    
+
     def __repr__(self):
         return f"TextNode({self.text}, {self.text_type}, {self.url})"
-    
-    def split_delimiter(self, t_type):
-        if t_type not in self.text_type_delimiters.keys():
-            # trying to split up using a type that has no delimiter
-            return list(self)
-        delimiter = self.text_type_delimiters[t_type]
-        result = []
-        temp = ""
-        foundword = ""
-        inside_delimiter = False
-        delimiter_length = len(delimiter)
-        current_index = 0
 
-        while current_index < len(self.text):
-            if self.text[current_index:current_index + delimiter_length] == delimiter:
-                inside_delimiter = not inside_delimiter
-                current_index += delimiter_length
-                if not inside_delimiter:
-                    result.append(TextNode(temp, "text"))
-                    result.append(TextNode(foundword, t_type))
-                    temp = ""
-                    foundword = ""
-                continue
-            elif self.text[current_index] != delimiter[0]:
-                if inside_delimiter:
-                    foundword += self.text[current_index]
-                else:
-                    temp += self.text[current_index]
-            current_index += 1
-        
-        if temp:
-            result.append(TextNode(temp, "text"))
-        if foundword:
-            # end of word found without a closing delimiter
-            result.append(TextNode(f"{delimiter}{foundword}", "text"))
+    @staticmethod
+    def text_to_html(text):
+        text_lines = text.split("\n")
+        temp = []
+        # for each line, add a list of inline text nodes
+        for line in text_lines:
+            line_node = TextNode(line, "text")
+            temp.append(line_node.seperate_inline())
+        #flatten temp
+        result = []
+        for group in temp:
+            result.extend(group)
         return result
+
+    def seperate_inline(self):
+        result = []
+        result.append(self) # result is 1 node long
+        
+        delimiter_types = {
+            "bold" : "**",
+            "italic" : "*",
+            "code" : "`"
+        }
+
+        for t_type in delimiter_types:
+            temp = []
+            # temp is the new layer of nodes
+            for node in result:
+                temp.extend(node.seperate_delimiter(t_type, delimiter_types[t_type]))
+            # temp has a list of node_lists created by seperate_delimiter
+            result = temp.copy()
+
+        new_result = []
+        for node in result:
+            temp = node.seperate_images()
+            for item in temp:
+                new_group = item.seperate_links()
+                for new_item in new_group:
+                    if new_item.text != "":
+                        new_result.append(new_item)
+
+        return new_result
+
+    def seperate_images(self):
+        result = []
+        image_group = re.findall(r"!\[(.*?)\]\((.*?)\)", self.text)
+        if len(image_group) != 0:
+            for item in image_group:
+                substrings = self.text.split(f"![{item[0]}]({item[1]})", 1)
+                counter = 0
+                for substring in substrings:
+                    result.append(TextNode(substring, self.text_type))
+                    counter += 1
+                    if counter % 2 != 0:
+                        result.append(TextNode(f"{item[0]}", "image", item[1]))
+            return result
+        else:
+            return [self]
+
+    def seperate_links(self):
+        result = []
+        link_group = re.findall(r"\[(.*?)\]\((.*?)\)", self.text)
+        if len(link_group) != 0:
+            for item in link_group:
+                substrings = self.text.split(f"[{item[0]}]({item[1]})", 1)
+                counter = 0
+                for substring in substrings:
+                    result.append(TextNode(substring, self.text_type))
+                    counter += 1
+                    if counter % 2 != 0:
+                        result.append(TextNode(f"{item[0]}", "link", item[1]))
+            return result
+        else:
+            return [self]
+
+    def seperate_delimiter(self, t_type, delimiter):
+        result = []
+        normalword = ""
+        foundword = ""
+        counter = 0
+        inside_delimiter = False
+
+        while counter < len(self.text):
+            if counter == len(self.text) - len(delimiter) and self.text[counter:counter + len(delimiter)] == delimiter and not inside_delimiter:
+                normalword += delimiter #the last few characters are a delimiter AND it's not a closing delimiter
+                counter += len(delimiter)
+            elif self.text[counter:counter + len(delimiter)] == delimiter:
+                counter += len(delimiter)
+                inside_delimiter = not inside_delimiter
+                # check if we have just skipped over a closing delimiter
+                if not inside_delimiter:
+                    # check if these words even have content
+                    if normalword and not normalword.isspace():
+                        # append all text before opening delimiter
+                        result.append(TextNode(normalword, self.text_type))
+                        normalword = ""
+                    if foundword and not foundword.isspace():
+                        # append all text inside delimiters
+                        result.append(TextNode(foundword, t_type))
+                        foundword = ""
+            else:
+                if inside_delimiter:
+                    # we crossed an opening delimiter before
+                    foundword += self.text[counter]
+                else:
+                    # we are outside a pair of delimiters
+                    normalword += self.text[counter]
+                counter += 1
+
+        if foundword and not foundword.isspace():
+            if normalword and not normalword.isspace():
+                result.append(TextNode(f"{normalword}{delimiter}{foundword}", self.text_type))
+            else:
+                result.append(TextNode(f"{delimiter}{foundword}", self.text_type))
+        elif normalword and not normalword.isspace():
+            result.append(TextNode(normalword, self.text_type))
+
+        return result
+
 
     def to_html(self):
         if self.text_type == "text":

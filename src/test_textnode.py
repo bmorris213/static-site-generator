@@ -4,10 +4,11 @@ from textnode import TextNode
 
 class TestTextNode(unittest.TestCase):
     def test_text_to_html(self):
-        node = TextNode("This is a **text** node with **bold text** and *italic* text **ending** without being **bold", "bold")
-        splitnodes = node.split_delimiter("bold") # fix t_type vs delimiter class types lmao it took away the italic *s
-        for item in splitnodes:
-            print(item.to_html())
+        #it breaks up bold first... because of ordering OOPS
+        test_text = "This is **text** with an *italic* word and a `code block` and an ![image](https://google.com.png) and a [link](https://boot.dev)"
+        node_group = TextNode.text_to_html(test_text)
+        for node in node_group:
+            print(node.to_html())
 
 if __name__ == "__main__":
     unittest.main()
