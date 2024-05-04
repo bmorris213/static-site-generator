@@ -12,7 +12,7 @@ class ParentNode(HTMLNode):
             raise ValueError("Parent nodes require a tag")
         htmlresult = f"<{self.tag}>"
         for child in self.children:
-            htmlresult += child.to_html()
-        htmlresult += f"<\\{self.tag}>"
+            htmlresult += f"{child.to_html()}"
+        htmlresult += f"<\{self.tag}>"
         return htmlresult
         
