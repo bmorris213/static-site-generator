@@ -7,9 +7,8 @@ class TestTextNode(unittest.TestCase):
         #it breaks up bold first... because of ordering OOPS
         #also inline text_type AND block block_types need to be classified
         #   <Code blocks should be surrounded by a <code> tag nested inside a <pre> tag.
-        #   and list item should be surrounded by a <li> tag.
-        # code tag is showing up as blank
-        # headings count as heading level six... instead of 1, 2, 3, then 6
+        #   and list item should be surrounded by a <ul> or <ol>tag.
+        # there are currently no /n how do I add them back in?? hmm
         # ordered list has no <ol> and still has 1. and etc etc
         test_text = "This is a test text"
         test_text += "\n> And these are quotes"
