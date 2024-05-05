@@ -39,6 +39,11 @@ def extract_title(html):
 
 def copy_to(source_dir, target_dir):
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    components = script_dir.split(os.sep)
+    if components:
+        components.pop()
+    script_dir = os.path.join(*components)
+    script_dir = f"/{script_dir}"
     
     # Construct full paths for source and target directories based on the script's directory
     source_directory = os.path.join(script_dir, source_dir)
@@ -60,8 +65,8 @@ def copy_to(source_dir, target_dir):
             shutil.copy2(source, target)
 
 def main():
-    destination_folder = "src/public"
-    source_folder="src/static"
+    destination_folder = "public"
+    source_folder="static"
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     components = script_dir.split(os.sep)
