@@ -3,6 +3,16 @@ import shutil
 import re
 from textnode import TextNode
 
+def generate_pages_recursively(source_dir, template_dir, target_dir):
+    for item in os.listdir(source_dir):
+        item_path = os.path.join(source_dir , item)
+        new_target = os.path.join(target_dir , item)
+        if os.path.isdir(item_path):
+            if not os.path.exists(new_target):
+                os.makedirs(new_target)
+            generate_pages_recursively(item_path, template_dir, new_target)
+        elif os.path.isfile(item_path):
+            generate_page(source_dir, template_dir, target_dir)
 
 def generate_page(source_dir, template_dir, target_dir):
     source_document = "index.md"
@@ -85,7 +95,7 @@ def main():
     target = os.path.join(script_dir, "public")
     source = os.path.join(script_dir, "content")
 
-    generate_page(source,script_dir,target)
+    generate_pages_recursively(source,script_dir,target)
 
 if __name__ == "__main__":
     main()

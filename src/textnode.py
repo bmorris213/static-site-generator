@@ -40,6 +40,8 @@ class TextNode:
         counter = 0
 
         for line in text_lines:
+            if counter != 0 and line[0:len(str(counter)) + 1] != f"{counter}.":
+                counter = 0
             # test to see if the new type of block is not the old type
             if line == "":
                 continue
@@ -90,8 +92,6 @@ class TextNode:
                 counter += 1
                 if line[0:len(str(counter)) + 1] == f"{counter}.":
                     new_block.append(line[len(str(counter)) + 2:])
-                else:
-                    counter = 0
             else:
                 if block_type != "paragraph":
                     if len(new_block) != 0:
@@ -105,6 +105,9 @@ class TextNode:
                 raise Exception("block to split results in length 0")
             else:
                 blocks.append((new_block,"paragraph"))
+
+        if len(new_block) != 0:
+            blocks.append((new_block,"paragraph"))
         
         return blocks 
 
