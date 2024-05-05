@@ -10,9 +10,15 @@ class ParentNode(HTMLNode):
             raise ValueError("Parent Nodes require children")
         if self.tag == None:
             raise ValueError("Parent nodes require a tag")
-        htmlresult = f"<{self.tag}>"
+        if self.tag == "code_block":
+            htmlresult = f"<pre><code>"
+        else:
+            htmlresult = f"<{self.tag}>"
         for child in self.children:
             htmlresult += f"{child.to_html()}"
-        htmlresult += f"</{self.tag}>"
+        if self.tag == "code_block":
+            htmlresult += f"</code></pre>"
+        else:
+            htmlresult += f"</{self.tag}>"
         return htmlresult
         

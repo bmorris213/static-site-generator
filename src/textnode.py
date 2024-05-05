@@ -40,12 +40,7 @@ class TextNode:
         counter = 0
 
         for line in text_lines:
-            # test for exiting ordered list
-            if counter != 0 and line[0:len(str(counter))] != f"{counter}.":
-                counter = 0
-
             # test to see if the new type of block is not the old type
-
             if line == "":
                 continue
             elif block_type == "code_block":
@@ -86,15 +81,17 @@ class TextNode:
                         new_block = []
                     block_type = "quote"
                 new_block.append(line)
-            elif line[0:1] == "1." or counter != 0:
+            elif line[0:2] == "1." or counter != 0:
                 if block_type != "ordered_list":
                     if len(new_block) != 0:
                         blocks.append((new_block,block_type))
                         new_block = []
                     block_type = "ordered_list"
                 counter += 1
-                if line[0:len(str(counter))] == f"{counter}.":
-                    new_block.append(line)
+                if line[0:len(str(counter)) + 1] == f"{counter}.":
+                    new_block.append(line[len(str(counter)) + 2:])
+                else:
+                    counter = 0
             else:
                 if block_type != "paragraph":
                     if len(new_block) != 0:
@@ -109,7 +106,7 @@ class TextNode:
             else:
                 blocks.append((new_block,"paragraph"))
         
-        return blocks     
+        return blocks 
 
     @staticmethod
     def block_to_html(block, block_type):
@@ -117,37 +114,34 @@ class TextNode:
         heading_level = 0
 
         for line in block:
-            node_group = []
+            new_line = ""
             if block_type == "quote" or block_type == "unordered_list":
                 # this line has a # followed by a space
-                node_group = TextNode(line[2:], "text").seperate_inline()
+                new_line = line[2:]
             elif block_type == "heading":
                 # this line has a number of "#" up to 6
                 heading_level = 0
                 while heading_level != 6 and line[heading_level] == '#':
                     heading_level += 1
-                node_group = TextNode(line[heading_level + 1:], "text").seperate_inline()
+                new_line = line[heading_level + 1:]
             elif block_type == "code_block" or block_type == "paragraph":
-                node_group = TextNode(line, "text").seperate_inline()
+                new_line = line
             elif block_type == "ordered_list":
-                number_substring = ""
-                for character in line:
-                    if character.isnumeric():
-                        number_substring.append(character)
-                    else:
-                        break
-                node_group = TextNode(line[number_substring.int():], "text").seperate_inline()
+                new_line = line
             else:
                 raise Exception("invalid block type")
-            node_group[0].text = f"{node_group[0].text}"
+
+            if block_type == "ordered_list" or block_type == "unordered_list":
+                new_line = f"<li>{new_line}</li>"
+            node_group = TextNode(new_line, "text").seperate_inline()
             temp.extend(node_group)
-        
+
         # add tag and return block
         tag = ""
         if block_type == "quote":
             tag = "blockquote"
         elif block_type == "code_block":
-            tag = "code"
+            tag = "code_block"
         elif block_type == "paragraph":
             tag = "p"
         elif block_type == "unordered_list":

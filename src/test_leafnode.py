@@ -4,6 +4,8 @@ from leafnode import LeafNode
 
 class TestLeafNode(unittest.TestCase):
     def test_html(self):
+        node4 = LeafNode("code", "This is code!")
+        print (node4.to_html())
         node = LeafNode("p", "This is a node")
         print (node.to_html())
         node2 = LeafNode(None, "this is raw test lmao")
