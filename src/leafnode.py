@@ -16,5 +16,5 @@ class LeafNode(HTMLNode):
             htmlresult += self.props_to_html()
         htmlresult += ">"
         htmlresult += self.value
-        htmlresult += f"<\\{self.tag}>"
+        htmlresult += f"</{self.tag}>"
         return htmlresult
