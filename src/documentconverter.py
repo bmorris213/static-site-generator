@@ -11,6 +11,7 @@
 import re
 from parentnode import ParentNode
 from leafnode import LeafNode
+from enum import Enum, auto
 
 class DocumentConverter:
     # supported types of documents
@@ -18,6 +19,13 @@ class DocumentConverter:
         TXT = auto()
         MARKDOWN = auto()
         HTML = auto()
+
+    # supported inline delimiter formatting
+    markdown_delimiters = {
+        "**" : LeafNode.TextType.BOLD,
+        "*" : LeafNode.TextType.ITALIC,
+        "`" : LeafNode.TextType.CODE
+    }
 
     # this document converter stores a parentnode Root
     # which is None until a document is read
@@ -47,21 +55,13 @@ class DocumentConverter:
         blocks = DocumentConverter.split_markdown(document)
         node_list = []
         # process each block structure
-        
-        # split_line_delimiter needs delimiter:text_type dictionary
-        # these are the markdown inline delimiters
-        delimiters = {
-            "**" : LeafNode.TextType.BOLD,
-            "*" : LeafNode.TextType.ITALIC,
-            "`" : LeafNode.TextType.CODE
-        }
 
         # process each block, adding a parent containing its contents to node_list
         for block in blocks: # blocks are made of (type, list of lines)
             leaf_nodes = []
             leaf_values = []
             for line in block[1]:
-                leaf_values.extend(DocumentConverter.split_line_delimiter(line, delimiters, LeafNode.TextType.NORMAL))
+                leaf_values.extend(DocumentConverter.split_line_delimiter(line, DocumentConverter.markdown_delimiters, LeafNode.TextType.NORMAL))
 
             for pair in leaf_values: # where pair[0] is text_type and pair[1] is value
                 # we still need to test for image and links
@@ -99,25 +99,25 @@ class DocumentConverter:
         # split document into blocks
         for line in text_lines:
             # test if we need to reset counter for ordered lists
-            if counter != 0 and line[:len(str(counter)) + 1] != f"{counter}.":
+            if counter != 0 and line[:len(str(counter)) + 1] != f"{counter+1}.":
                 counter = 0
             
             # test for which block type new line is
-            if line == ""
+            if line == "":
                 continue
             elif line[0] == ">":
                 if new_block_type != ParentNode.TextType.QUOTE:
                     # we are coming across a new block
-                    new_block_type = ParentNode.TextType.QUOTE
-                    star_type = False
-                    dash_type = False
                     if len(new_block) != 0:
                         blocks.append((new_block_type, new_block))
                         new_block = []
+                    new_block_type = ParentNode.TextType.QUOTE
+                    star_type = False
+                    dash_type = False
                 # check for skippable items with nothing on them
                 if len(line) < 3:
                     continue
-                new_block.append(line[:2]) # skip '> '
+                new_block.append(line[2:]) # skip '> '
             elif new_block_type == ParentNode.TextType.CODE:
                 if len(line) >= 3 and line[:3] == "```":
                     # we are looking at a closing delimiter
@@ -140,7 +140,7 @@ class DocumentConverter:
                     blocks.append((new_block_type, new_block))
                     new_block = []
                 continue
-            elif line[0] == "*":star_type_text
+            elif line[0] == "*":
                 if new_block_type != ParentNode.TextType.UNORDERED_LIST or dash_type:
                     # we have come across a new block
                     if len(new_block) != 0:
@@ -173,7 +173,8 @@ class DocumentConverter:
                 heading_level = 0
                 while heading_level < 6:
                     heading_level += 1
-                    if line[:heading_level] != len(line[:heading_level]) * "#":
+                    if line[:heading_level] != heading_level * "#":
+                        heading_level -= 1
                         break
                 if heading_level == 1:
                     new_block_type = ParentNode.TextType.HEADING1
@@ -190,7 +191,7 @@ class DocumentConverter:
                 else:
                     raise Exception("heading level fell outside of range")
 
-                blocks.append((new_block_type, line[heading_level:]))
+                blocks.append((new_block_type, [line[heading_level:]]))
             elif counter != 0 or line[0:2] == "1.":
                 if new_block_type != ParentNode.TextType.ORDERED_LIST:
                     # we have come across a new block
@@ -202,14 +203,13 @@ class DocumentConverter:
                     dash_type = False
                 counter += 1
                 # ordered lists must count up from 1
-                if line[:len(str(counter)) + 1] == f"{counter}.":
-                    new_block.append(line[len(str(counter)):])
+                new_block.append(line[len(str(counter))+1:])
             else:
-                if block_type != ParentNode.TextType.NORMAL:
+                if new_block_type != ParentNode.TextType.NORMAL:
                     if len(new_block) != 0:
                         blocks.append((new_block_type, new_block))
                         new_block = []
-                    block_type = ParentNode.TextType.NORMAL
+                    new_block_type = ParentNode.TextType.NORMAL
                     star_type = False
                     dash_type = False
                 new_block.append(line)
@@ -238,60 +238,82 @@ class DocumentConverter:
         if len(line) == 1:
             return [(normal_type, line)]
         
-        # initialize list to store (text_type, substring) tuples
         result = []
         current_index = 0
         current_text = ""
+        enclosed_text = ""
+        delimiter = None
+        text_type = None
 
-        for delimiter in delimiters:
-            # look for instance of this delimiter
-            start_index = line.find(delimiter, current_index)
+        # Sort delimiters by length in descending order to prioritize longer delimiters
+        sorted_delimiters = sorted(delimiters.items(), key=lambda x: len(x[0]), reverse=True)
 
-            # if we found nothing, continue testing other delimiters
-            if start_index == -1:
-                continue
-            
-            # look for instance of a closing delimiter
-            end_index = line.find(delimiter, current_index + len(delimiter))
+        while current_index < len(line):
+            # if we're inside a delimiter already
+            if enclosed_text != "":
+                if line[current_index:current_index+len(delimiter)] != delimiter:
+                    enclosed_text += line[current_index]
+                    current_index += 1
+                    continue
 
-            # if we found nothing, this delimiter does not count as special text
-            if end_index == -1:
-                # we need to add the delimiter itself to current_text
-                # and continue testing delimiters
-                current_text += delimiter
+                # we may have found the wrong kind of delimiter
+                false_positive = False
+                for key, value in sorted_delimiters:
+                    if line[current_index:current_index+len(key)] == key:
+                        if key != delimiter:
+                            # we hit a false positive
+                            enclosed_text += line[current_index:current_index+len(key)]
+                            current_index += len(key)
+                            false_positive = True
+                            break
+                        else:
+                            break
+                if false_positive == True:
+                    continue
+                
+                # we have found a closing delimiter
+                if len(current_text) != 0:
+                    result.append((normal_type,current_text))
+                current_text = ""
+                subresults = DocumentConverter.split_line_delimiter(enclosed_text, delimiters, text_type)
+                result.extend(subresults)
+                enclosed_text = ""
                 current_index += len(delimiter)
+                delimiter = None
+                text_type = None
                 continue
-
-            # otherwise we found a delimiter pair with something between them
-            enclosed_text = line[start_index + len(delimiter):end_index + len(delimiter) - 1]
             
-            # we should append any prior text
-            current_text = current_text + line[current_index:start_index]
-            result.append((normal_type, current_text))
-            current_text = ""
-
-            # if there is actually no text enclosed, we should continue searching
-            if enclosed_text == "":
-                current_index = end_index + len(delimiter)
+            # search for opening delimiter
+            for key, value in sorted_delimiters:
+                if line[current_index:current_index+len(key)] == key:
+                    delimiter = key
+                    text_type = value
+                    current_index += len(delimiter)
+            
+            if delimiter == None and text_type == None:
+                current_text += line[current_index]
+                current_index += 1
                 continue
-
-            # now we should recursively search contents for different delimiters present
-            inner_text_group = split_line_delimiter(enclosed_text, delimiters, delimiters[delimiter])
-            result.extend(inner_text_group)
-            current_index = end_index + len(delimiter)
-
-            # test if we've reached the end and can stop testing delimiters
-            if current_index >= len(line):
-                break
             
-        # once we are done testing delimiters there should still be some text left
-        if current_index < len(line):
-            current_text = current_text + line[current_index:]
-            result.append((normal_type, current_text))
+            # otherwise we have found an opening delimiter
+            enclosed_text = line[current_index]
+            current_index += 1
         
-        # if result is still empty somehow, we can just return the line
-        if len(result) == 0:
-            result.append((normal_type, line))
+        # catching edge cases
+        if len(enclosed_text) != 0:
+            # there was no closing delimiter
+            subresults = DocumentConverter.split_line_delimiter(enclosed_text, delimiters, normal_type)
+            if len(current_text) != 0:
+                result.append((normal_type,f"{current_text}{delimiter}"))
+            else:
+                result.append((normal_type,delimiter))
+            result.extend(subresults)
+        elif len(current_text) != 0:
+            # there was normal text after any closing delimiter
+            result.append((normal_type,current_text))
+        elif len(result) == 0:
+            # nothing was added somehow
+            result.append((normal_type,line))
         
         return result
 
@@ -300,14 +322,15 @@ class DocumentConverter:
     # returns a list of (text_type, substring1, substring2) tuples
     @staticmethod
     def extract_markdown_references(input_string, normal_type):
+        text = input_string
+        
         if len(text) == 0:
             return None
         if len(text) <= 2:
             return ((normal_type, text, None))
         result = []
         
-        text = input_string
-        image_group = re.findall(r"!\[(.*?)\]\((.*?)\)", self.text)
+        image_group = re.findall(r"!\[(.*?)\]\((.*?)\)", text)
         if len(image_group) != 0:
             for item in image_group:
                 substrings = text.split(f"![{item[0]}]({item[1]})", 1)
@@ -316,8 +339,7 @@ class DocumentConverter:
                     result.append((LeafNode.TextType.IMAGE, item[0], item[1]))
                 text = substrings[1]
         
-        text = input_string
-        link_group = re.findall(r"\[(.*?)\]\((.*?)\)", self.text)
+        link_group = re.findall(r"\[(.*?)\]\((.*?)\)", text)
         if len(link_group) != 0:
             for item in link_group:
                 substrings = text.split(f"[{item[0]}]({item[1]})", 1)
@@ -326,6 +348,6 @@ class DocumentConverter:
                 text = substrings[1]
         
         if len(result) == 0:
-            return ((normal_type, text, None))
+            result = [(normal_type, input_string, None)]
         
         return result

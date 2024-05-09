@@ -83,17 +83,17 @@ class ParentNode(TextNode):
             return "ol"
         elif self.text_type == ParentNode.TextType.UNORDERED_LIST:
             return "ul"
-        elif self.text_type == ParentNode.TextType.HEADING_1:
+        elif self.text_type == ParentNode.TextType.HEADING1:
             return "h1"
-        elif self.text_type == ParentNode.TextType.HEADING_2:
+        elif self.text_type == ParentNode.TextType.HEADING2:
             return "h2"
-        elif self.text_type == ParentNode.TextType.HEADING_3:
+        elif self.text_type == ParentNode.TextType.HEADING3:
             return "h3"
-        elif self.text_type == ParentNode.TextType.HEADING_4:
+        elif self.text_type == ParentNode.TextType.HEADING4:
             return "h4"
-        elif self.text_type == ParentNode.TextType.HEADING_5:
+        elif self.text_type == ParentNode.TextType.HEADING5:
             return "h5"
-        elif self.text_type == ParentNode.TextType.HEADING_6:
+        elif self.text_type == ParentNode.TextType.HEADING6:
             return "h6"
         else:
             raise ValueError(f"Parent node has invalid type of {self.text_type}")
